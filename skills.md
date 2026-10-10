@@ -164,6 +164,7 @@ Add it to `AUDIO_EXTENSIONS` in `tags.rs`. It only plays if `rodio`'s symphonia 
 - **A missing folder does not wipe its tracks.** The scanner deliberately skips unreachable folders so an unplugged drive keeps its library entries.
 - **Overlapping library folders are refused** by `find_existing` in `commands.rs`.
 - **The Tauri capability list** in `src-tauri/capabilities/default.json` only allows `core:default` and `dialog:allow-open`. A new plugin or built-in API needs an entry there, and new URL schemes need the CSP in `tauri.conf.json` updated.
+- **Cargo is capped at 8 parallel jobs** by `src-tauri/.cargo/config.toml`. The default of one per core (32) ran the machine out of memory during release builds and froze it. Do not remove the cap or pass a higher `-j` without asking.
 - **App data paths**: database at `~/.local/share/com.mitchell.musicplayer/library.db`, thumbnails at `~/.cache/com.mitchell.musicplayer/thumbnails/`. Both are safe to delete. Never test against these; use `Db::open_in_memory()` and temporary folders.
 
 ## Planned work
