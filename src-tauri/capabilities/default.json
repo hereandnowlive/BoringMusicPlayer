@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What the UI in the main window is allowed to ask Tauri for. Our own commands (commands.rs) are always allowed; this list is for Tauri's built-in features and plugins.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open"
+  ]
+}

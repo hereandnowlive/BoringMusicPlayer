@@ -1,0 +1,19 @@
+<!doctype html>
+<!-- The classes are Tailwind utilities (see src/styles.css). `h-full` on
+     html, body and #root passes the window's height down to the app;
+     `scheme-dark` asks for dark scrollbars and native controls. -->
+<html lang="en" class="h-full scheme-dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Boring Music Player</title>
+  </head>
+  <!-- overflow-hidden: the window itself never scrolls; panels do.
+       select-none and cursor-default: feel like an app, with no accidental
+       text selection and no text cursor over labels. -->
+  <body class="h-full cursor-default overflow-hidden bg-window text-sm text-fg select-none">
+    <!-- React renders the whole UI inside this element (see src/main.tsx). -->
+    <div id="root" class="h-full"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

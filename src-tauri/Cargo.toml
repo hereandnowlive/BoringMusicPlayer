@@ -1,0 +1,52 @@
+[package]
+name = "boring-music-player"
+version = "1.3.0"
+description = "A personal desktop music player"
+edition = "2021"
+
+# The app is split into a library (src/lib.rs, where everything lives) and a
+# tiny binary (src/main.rs) that just calls into it. This is the layout Tauri
+# recommends, and it also lets `cargo test` exercise the library code.
+[lib]
+name = "music_player_lib"
+crate-type = ["lib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# --- Desktop shell: window, webview, and the bridge between Rust and TypeScript
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"            # native "pick a folder / pick a file" dialogs
+
+# --- Data passed to the UI is converted to JSON with serde
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# --- Audio
+# rodio plays sound; the symphonia feature set is its pure-Rust decoder
+# collection (MP3, FLAC, AAC/M4A, Ogg Vorbis, WAV...).
+rodio = { version = "0.22", default-features = false, features = ["playback", "symphonia-all"] }
+lofty = "0.25"                       # read AND write tags + embedded cover art
+
+# --- Library storage
+# "bundled" compiles SQLite into the app, so nothing has to be installed.
+rusqlite = { version = "0.40", features = ["bundled"] }
+walkdir = "2"                        # recursive folder walking
+
+# --- Misc
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "bmp", "gif"] }
+thiserror = "2"                      # less boilerplate for our error type
+rand = "0.10"                        # shuffle
+
+[profile.dev.package."*"]
+# Compile dependencies (especially the audio decoders and image code) with
+# optimisations even in debug builds; otherwise playback can stutter in dev.
+opt-level = 2
+
+[profile.dev]
+debug = "line-tables-only"   # keeps file/line numbers in panics and backtraces, drops the rest
+
+
+[dev-dependencies]
+tempfile = "3"                       # temporary folders for unit tests

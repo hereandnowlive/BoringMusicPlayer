@@ -1,0 +1,71 @@
+/*
+ * The app's stylesheet. Styling is done with Tailwind CSS: each element's
+ * look is written as utility classes in its `className`, in the component
+ * files under src/components/. So this file is short. It holds only what
+ * utility classes cannot express:
+ *
+ *   1. The theme: the app's colours and font, which become utilities
+ *      (`--color-panel` gives `bg-panel`, `text-panel`, `border-panel`...).
+ *   2. A few base rules that apply to every element of a kind.
+ *
+ * Class strings used by more than one component (buttons, mostly) live in
+ * src/classes.ts.
+ *
+ * Tailwind docs: https://tailwindcss.com/docs/styling-with-utility-classes
+ * Theme variables: https://tailwindcss.com/docs/theme
+ */
+
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------- theme */
+
+@theme {
+  --color-window: #14161b;    /* window background */
+  --color-panel: #1b1e25;     /* sidebar, player bar, dialogs, menus */
+  --color-raised: #252a34;    /* buttons, hovered and selected rows */
+  --color-edge: #2c313d;      /* borders and dividing lines */
+  --color-fg: #e7e9ee;        /* normal text ("foreground") */
+  --color-muted: #8d94a3;     /* secondary text */
+  --color-accent: #e8a33d;    /* the amber of the app icon */
+  --color-on-accent: #1a1408; /* text on top of the accent colour */
+  --color-danger: #e5625e;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+}
+
+/* ----------------------------------------------------------------------- base */
+
+/* `@layer base` puts these rules underneath the utility classes, so a
+   utility on an element always wins over a rule here.
+   https://tailwindcss.com/docs/adding-custom-styles#adding-base-styles */
+@layer base {
+  /* Keyboard focus ring, the same on every control. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+
+  /* The "hand" cursor over the controls that do something when clicked:
+     every button (sidebar entries, column headers, the big cover and menu
+     entries are all buttons), the volume slider, and the radio buttons
+     with their labels. Things that are clickable without being one of
+     these (song rows, the progress bar, the player bar) add
+     `cursor-pointer` themselves.
+
+     Disabled controls are left out, so the cursor only promises a click
+     where one will work. `:has()` picks a label by what is inside it:
+     https://developer.mozilla.org/docs/Web/CSS/:has */
+  button:not(:disabled),
+  input[type="range"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  label:has(input[type="radio"]:not(:disabled)) {
+    cursor: pointer;
+  }
+
+  /* A disabled button is faded, and keeps the arrow cursor even inside
+     something that sets the hand (the player bar does). */
+  button:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+}

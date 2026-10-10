@@ -1,0 +1,2 @@
+-> Ask how the system actually detects if it's an mp3 player or not
+-> openclipart.org/338665
