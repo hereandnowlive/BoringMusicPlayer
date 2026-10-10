@@ -1,0 +1,151 @@
+# Builds the app on Linux and Windows and publishes the installers as a GitHub
+# release named after the app version.
+#
+# It only runs when started by hand:
+#   GitHub -> Actions -> "Release" -> "Run workflow"
+#
+# The version comes from "version" in src-tauri/tauri.conf.json (the same one
+# Tauri puts in the installer names), and the release is tagged v<version>,
+# for example v1.3.0. If that version has already been released the run fails
+# straight away, before building anything: bump the version first.
+#
+# Nothing is public until every build has succeeded. The release starts as a
+# draft (only visible to you), the builds attach their installers to it, and
+# the last job publishes it. A run that fails part-way leaves a draft behind;
+# the next run deletes that draft and starts again.
+
+name: Release
+
+on:
+  workflow_dispatch:
+
+# Only one release run at a time; a second one waits for the first.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+# Lets the workflow's built-in token create releases and upload files to them.
+permissions:
+  contents: write
+
+env:
+  # The `gh` command-line tool reads its login from this variable.
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  # 1. Work out the version, refuse if it is already released, open a draft.
+  prepare:
+    name: Check version and open draft
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the version from tauri.conf.json
+        id: version
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "Version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if this version is already released
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          # A git tag with this name means the version is taken, whether it
+          # came from a published release or was pushed by hand. (A draft
+          # release has no tag until it is published.)
+          if [ -n "$(git ls-remote --tags origin "refs/tags/$TAG")" ]; then
+            echo "::error::$TAG already exists. Bump the version in src-tauri/tauri.conf.json (and Cargo.toml and package.json) before releasing."
+            exit 1
+          fi
+
+          # A draft left over from a failed run: throw it away and start clean,
+          # so its files and its commit cannot be stale.
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Deleting the unfinished draft of $TAG from an earlier run."
+            gh release delete "$TAG" --yes
+          fi
+
+      - name: Open the draft release
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$TAG" \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "Boring Music Player $VERSION" \
+            --generate-notes
+
+  # 2. Build the installers, once on each operating system, and attach them.
+  build:
+    name: Build (${{ matrix.name }})
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          # Linux: .deb, .rpm and .AppImage. Built on the oldest Ubuntu GitHub
+          # offers, because a Linux program only runs on systems whose core
+          # library (glibc) is at least as new as the one it was built with.
+          - name: Linux
+            os: ubuntu-22.04
+          # Windows: .msi and -setup.exe.
+          - name: Windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          # webkit2gtk, appindicator, rsvg, xdo, ssl: needed by Tauri.
+          # asound: ALSA, needed by the audio output (rodio).
+          # patchelf, file: needed to build the AppImage.
+          sudo apt-get install -y \
+            build-essential file patchelf \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            libxdo-dev libssl-dev libasound2-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Keeps compiled dependencies between runs, so later releases build in a
+      # few minutes instead of starting from nothing.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install JavaScript packages
+        run: npm ci
+
+      # The same command as on my own machine: builds the app, then
+      # scripts/copy-installer.mjs gathers the installers into installer/.
+      - name: Build the app and its installers
+        run: npm run app:build
+
+      - name: Attach the installers to the draft release
+        shell: bash
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release upload "$TAG" installer/* --clobber
+
+  # 3. Every build worked, so make the release public.
+  publish:
+    name: Publish the release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false --latest

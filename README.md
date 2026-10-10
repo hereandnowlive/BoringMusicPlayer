@@ -47,7 +47,7 @@ Run these from the project root (this folder).
 | Command | What it does |
 |---|---|
 | `npm run app` | **Run the app for development.** Edits to `src/` appear instantly; edits to `src-tauri/` trigger a rebuild and restart. The first run compiles ~500 Rust crates and takes a few minutes. |
-| `npm run app:build` | Build the optimised app and its installer. The installer is copied to `installer/` with the version in its name, for example **`installer/boring-music-player_1.2.0_amd64.deb`**; the build prints the exact `sudo dpkg -i` command to install or upgrade with. (The bare program is `src-tauri/target/release/music-player`, and Tauri's original `.deb` is under `src-tauri/target/release/bundle/deb/`.) |
+| `npm run app:build` | Build the optimised app and its installers (`.deb`, `.rpm` and AppImage). Each is copied to `installer/` with the version in its name, for example **`installer/boring-music-player_1.3.0_amd64.deb`**; the build prints how to install or run each one. (The bare program is `src-tauri/target/release/music-player`, and Tauri's originals are under `src-tauri/target/release/bundle/`.) |
 | `cd src-tauri && cargo test` | Run the Rust unit tests. |
 | `npm run typecheck` | Type-check the TypeScript. |
 | `cd src-tauri && cargo clippy` | Rust linter. Its suggestions are a good way to learn idiomatic Rust. |
@@ -161,10 +161,12 @@ custom music player/
 ├── index.html              the page the webview loads; just a mount point for React
 ├── vite.config.ts          build tool config for the UI (React and Tailwind plugins)
 ├── tsconfig.json           TypeScript compiler settings
+├── .github/workflows/
+│   └── release.yml         GitHub Action: builds Linux and Windows installers and publishes a release
 ├── scripts/
-│   ├── copy-installer.mjs  copies the built .deb to installer/ after app:build
+│   ├── copy-installer.mjs  copies the built installers to installer/ after app:build
 │   └── make-icon.py        builds the app icon artwork from the clipart
-├── installer/              the built installer lands here (not in git)
+├── installer/              the built installers land here (not in git)
 ├── old-icons/              previous app icons, kept as a backup (not in git)
 │
 ├── src/                    ── THE UI (TypeScript) ──────────────────────────
@@ -387,7 +389,7 @@ until you do this.
    one with the same version number.
 
    ```bash
-   sudo dpkg -i installer/boring-music-player_1.2.0_amd64.deb   # use the version you built
+   sudo dpkg -i installer/boring-music-player_1.3.0_amd64.deb   # use the version you built
    ```
 
 **Your data survives upgrades.** The library database and thumbnails live in
@@ -403,17 +405,29 @@ first time it opens. That number is the database's own schema version (it is
 **To uninstall:** `sudo apt remove music-player`. Your data folders are left
 behind; delete them by hand if you want them gone.
 
+### Publishing a release on GitHub
+
+`.github/workflows/release.yml` builds the Linux packages (`.deb`, `.rpm`,
+AppImage) and the Windows installers (`.msi`, `-setup.exe`) on GitHub's own
+machines and publishes them as a release tagged `v<version>`.
+
+1. Bump the version (step 2 above), commit and push.
+2. On GitHub: **Actions → Release → Run workflow**.
+
+The run fails at once if that version's tag already exists. The release stays
+a private draft until both builds succeed, so a failed run publishes nothing.
+
 ### Other operating systems
 
-Not set up, and never tested. Tauri can build for Windows and macOS, and
-nothing in the code is Linux-only, but each version must be built *on* that
-operating system (or on GitHub Actions, which provides all three). Before
-trying:
+The Windows build is made by the GitHub workflow above but the app has never
+been run or tested there. macOS is not set up at all. Tauri can build for
+both, and nothing in the code is Linux-only, but each version must be built
+*on* that operating system.
 
-- In `src-tauri/tauri.conf.json`, change `"targets": ["deb"]` to `"all"` so
-  each system builds its own installer type.
-- `scripts/copy-installer.mjs` only looks for a `.deb`; extend it or drop it
-  from the `app:build` script on other systems.
+- `"targets": "all"` in `src-tauri/tauri.conf.json` makes each system build
+  its own installer types.
+- `scripts/copy-installer.mjs` collects the Linux and Windows installers. It
+  does not look for a macOS `.dmg`; add a line to `KINDS` for that.
 - The builds will be unsigned, so Windows and macOS will warn before opening
   them. Removing the warnings needs paid developer certificates.
 

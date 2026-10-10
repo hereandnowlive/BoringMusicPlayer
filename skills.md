@@ -4,7 +4,7 @@ A working guide to this codebase for Claude: where things live, the rules the co
 
 ## What this is
 
-A desktop music player for local files, built with Tauri 2. Linux only (`.deb`); never built or tested on Windows or macOS.
+A desktop music player for local files, built with Tauri 2. Linux only (`.deb`, `.rpm` and AppImage; only the `.deb` has been installed and tested); never built or tested on Windows or macOS.
 
 - **UI**: `src/`, TypeScript + React 19, styled with Tailwind CSS 4, built by Vite, drawn in a webview.
 - **Backend**: `src-tauri/src/`, Rust. Everything that touches files, the database or sound.
@@ -20,7 +20,7 @@ Run from the project root unless noted.
 | `cd src-tauri && cargo test` | Rust unit tests (64, plus 1 ignored that needs `SAMPLE_MUSIC`). Run after any Rust change. |
 | `cd src-tauri && cargo clippy` | Rust linter. Run after any Rust change. |
 | `npm run app` | Run the app in development. Opens a window and keeps running, so start it in the background. Uses port 1420. |
-| `npm run app:build` | Release build; copies the installer to `installer/boring-music-player_<version>_amd64.deb`. Takes minutes. |
+| `npm run app:build` | Release build; copies every installer it made (`.deb`, `.rpm`, `.AppImage`; `.msi`/`.exe` on Windows) to `installer/`, named `boring-music-player_<version>...`. Takes minutes. |
 | `npm run clean` | Deletes `src-tauri/target` (all Rust build output). Safe; the next build takes minutes. |
 
 There are no UI tests and no test runner for TypeScript. `npm run typecheck` is the only automated check on that side.
@@ -151,6 +151,7 @@ Add it to `AUDIO_EXTENSIONS` in `tags.rs`. It only plays if `rodio`'s symphonia 
 ## Things that are easy to get wrong
 
 - **Type names differ across the seam in one place**: Rust's `ArtUpdateResult` is TypeScript's `FileUpdateResult`. Only the field names matter to JSON.
+- **Releases are published by `.github/workflows/release.yml`**, started by hand on GitHub. It runs `npm run app:build` on Linux and Windows, tags the release `v<version>` from `tauri.conf.json`, and fails if that tag exists. A change to the build commands, the `installer/` folder or the Linux system libraries the app needs must be mirrored there.
 - **The app version lives in three files** that should be kept the same: `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json`. Only `tauri.conf.json` affects the installer.
 - **The last song and its queue are restored at startup** by `restore_last_session` in `player.rs`, as a stopped player with a track. Do not assume "stopped" means "no track".
 - **The database schema version is unrelated to the app version.**
